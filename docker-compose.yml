@@ -1,0 +1,171 @@
+version: "3.8"
+
+services:
+
+  api-gateway:
+    image: api-gateway
+    ports:
+      - "8181:8181"
+    build:
+      context: ./api-gateway
+      dockerfile: ./Dockerfile
+    container_name: api-gateway
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      eureka.client.serviceUrl.defaultZone: http://discovery-service:8761/eureka/
+    depends_on:
+      - discovery-service
+    restart: unless-stopped
+    networks:
+      - spring
+
+  comment-service:
+    image: comment-service
+    ports:
+      - "8082:8082"
+    build:
+      context: ./comment-service
+      dockerfile: ./Dockerfile
+    container_name: comment-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      eureka.client.serviceUrl.defaultZone: http://discovery-service:8761/eureka/
+    restart: unless-stopped
+    depends_on:
+      - postgres-comment
+      - discovery-service
+    networks:
+      - spring
+
+  discovery-service:
+    image: discovery-service
+    ports:
+      - "8761:8761"
+    build:
+      context: ./discovery-service
+      dockerfile: ./Dockerfile
+    container_name: discovery-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    networks:
+      - spring
+
+  friend-service:
+    image: friend-service
+    ports:
+      - "8084:8084"
+    build:
+      context: ./friend-service
+      dockerfile: ./Dockerfile
+    container_name: friend-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      eureka.client.serviceUrl.defaultZone: http://discovery-service:8761/eureka/
+    restart: unless-stopped
+    depends_on:
+      - postgres-friend
+      - discovery-service
+    networks:
+      - spring
+
+  post-service:
+    image: post-service
+    ports:
+      - "8081:8081"
+    build:
+      context: ./post-service
+      dockerfile: ./Dockerfile
+    container_name: post-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      eureka.client.serviceUrl.defaultZone: http://discovery-service:8761/eureka/
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+      - discovery-service
+    networks:
+      - spring
+
+  user-service:
+    image: user-service
+    ports:
+      - "8083:8083"
+    build:
+      context: ./user-service
+      dockerfile: ./Dockerfile
+    container_name: user-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      eureka.client.serviceUrl.defaultZone: http://discovery-service:8761/eureka/
+    restart: unless-stopped
+    depends_on:
+      - postgres-user
+      - discovery-service
+    networks:
+      - spring
+
+  postgres-comment:
+    image: postgres:latest
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - ./data/postgres-comment:/var/lib/postgresql/data
+      - ./init/postgres/comment-service/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    container_name: postgres-comment
+    restart: unless-stopped
+    networks:
+      - spring
+
+  postgres-friend:
+    image: postgres:latest
+    ports:
+      - "5434:5432"
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - ./data/postgres-friend:/var/lib/postgresql/data
+      - ./init/postgres/friend-service/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    container_name: postgres-friend
+    restart: unless-stopped
+    networks:
+      - spring
+
+  postgres-user:
+    image: postgres:latest
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - ./data/postgres-user:/var/lib/postgresql/data
+      - ./init/postgres/user-service/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    container_name: postgres-user
+    restart: unless-stopped
+    networks:
+      - spring
+
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+      - MONGO_INITDB_DATABASE=MongoSpringSocial
+    volumes:
+      - ./data/mongo/MongoSpringSocial:/data/db
+      - ./init/mongo/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    container_name: mongodb
+    restart: unless-stopped
+    command: mongod --auth
+    networks:
+      - spring
+
+networks:
+  spring:
+    driver: bridge
